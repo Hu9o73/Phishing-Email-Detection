@@ -53,3 +53,12 @@ Rich of 32 columns and around 450k rows, this dataset will give me the required 
 interrogations.
 
 More informations available on the kaggle page of the dataset: [DATASET ON KAGGLE](https://www.kaggle.com/datasets/advaithsrao/enron-fraud-email-dataset/data)
+
+## How to run ?
+
+- Clone the repo using `git clone` and navigate to the root of the project.
+- After making sure you had python installed, run `python -m venv .venv` to create a venv and activate the venv.
+    - `source .venv/bin/activate` on linux
+    - `.venv/script/activate.ps1` on windows
+- Once in your venv, run `pip install -r ./src/requirements.txt` to install the dependencies
+- Finally, run the app using `python ./src`

@@ -1,0 +1,6 @@
+asyncio
+pandas
+numpy
+matplotlib
+kagglehub[pandas-datasets]
+halo
