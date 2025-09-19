@@ -1,14 +1,11 @@
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
+import pandas as pd     # noqa: E402
+import asyncio          # noqa: E402
+import logging          # noqa: E402
 
-import pandas as pd
-import asyncio
-import logging
-from halo import Halo
-
-from app.services.dataloader import Dataloader
-from app.services.utils import clear_console
+from app.services.utils import clear_console, menu      # noqa: E402
 
 def logging_setup():
     logging.getLogger("kagglehub").setLevel(logging.ERROR)
@@ -18,19 +15,7 @@ def logging_setup():
 async def main():
     clear_console()
     logging_setup()
-
-    spinner = Halo(text='Loading dataset...', spinner='dots')
-    spinner.start()
-
-    try:
-        df = await Dataloader.load_data()
-        spinner.succeed('Dataset loaded successfully!')
-    except Exception as e:
-        spinner.fail(f'Failed to load dataset: {e}')
-        return
-
-    print(df.head())
-
+    await menu()
 
 if __name__ == "__main__":
     asyncio.run(main())
