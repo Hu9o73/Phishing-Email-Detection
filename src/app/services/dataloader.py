@@ -1,7 +1,5 @@
-from kagglehub import KaggleDatasetAdapter
 import pandas as pd
 import kagglehub
-import chardet
 
 class Dataloader:
     @staticmethod
