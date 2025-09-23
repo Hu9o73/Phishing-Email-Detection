@@ -3,6 +3,7 @@ import sys
 from halo import Halo
 
 from app.services.datamanager import datamanager
+from app.services.printers.data_information_printer import DataInformationPrinter
 
 def clear_console():
     subprocess.run('cls' if sys.platform == 'win32' else 'clear', shell=True)
@@ -35,8 +36,23 @@ async def get_info_about_dataset():
     if datamanager.df is None:
         print("Please load the dataset first.")
         return
-    print(datamanager.df.info())
-    return
+
+    spinner = Halo(text="Analyzing dataset...", spinner="dots")
+    spinner.start()
+
+    stats = await datamanager.get_comprehensive_stats()
+    data_printer = DataInformationPrinter(stats)
+
+    spinner.succeed(text="Analysis complete")
+
+    clear_console()
+
+    # Display each section
+    data_printer.print_basic_info()
+    data_printer.print_target_distribution()
+    data_printer.print_text_statistics()
+    data_printer.print_email_specific_stats()
+    data_printer.print_data_quality_report()
 
 
 async def menu():
@@ -64,4 +80,3 @@ async def menu():
         clear_console()
         await action()
         input("\nPress Enter to continue...")
-
