@@ -1,8 +1,7 @@
 import pandas as pd
 import kagglehub
 from typing import Dict, Any
-from .preprocessing import Preprocessor
-import os
+from app.services.preprocessing import Preprocessor
 
 
 class DataManager:
@@ -220,35 +219,40 @@ class DataManager:
     
     async def handle_quality_issues(self, drop_constants: bool = True, threshold: float = 50.0):
         """Runs preprocessing steps from preprocessing.py"""
-        pre = Preprocessor()
+        pre = Preprocessor(self)
         try:
             if drop_constants:
-                await pre.drop_constant_columns(self)
-            await pre.handle_missing_values(self, threshold=threshold)
+                await pre.drop_constant_columns()
+            await pre.handle_missing_values(threshold=threshold)
             return self.df
         except Exception:
             raise
 
     async def run_feature_engineering(self, top_k_domains: int = 50):
         """Create ML-ready feature columns (text-derived and encoded domains)."""
-        pre = Preprocessor()
+        pre = Preprocessor(self)
         try:
-            feature_cols = await pre.create_text_features(self, top_k_domains=top_k_domains)
+            feature_cols = await pre.create_text_features(top_k_domains=top_k_domains)
             return feature_cols
         except Exception:
             raise
 
-    async def run_vectorization(self, text_columns: list | None = None,
-                                vectorizer_type: str = "tfidf",
-                                ngram_range: tuple = (1, 2),
-                                max_features: int = 10000):
+    async def run_vectorization(
+            self,
+            text_columns: list | None = None,
+            vectorizer_type: str = "tfidf",
+            ngram_range: tuple = (1, 2),
+            max_features: int = 10000
+        ):
         """Run text vectorization using Preprocessor and store results on self."""
-        pre = Preprocessor()
+        pre = Preprocessor(self)
         try:
-            X = await pre.vectorize_text(self, text_columns=text_columns,
-                                         vectorizer_type=vectorizer_type,
-                                         ngram_range=ngram_range,
-                                         max_features=max_features)
+            X = await pre.vectorize_text(
+                text_columns=text_columns,
+                vectorizer_type=vectorizer_type,
+                ngram_range=ngram_range,
+                max_features=max_features
+            )
             return X
         except Exception:
             raise

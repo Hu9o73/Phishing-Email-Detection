@@ -7,34 +7,37 @@ import numpy as np
 class Preprocessor:
     """Preprocessor that contains a sequence of procedures"""
 
-    async def drop_constant_columns(self, datamanager):
-        """Inspect the data quality report for constant columns and drop them"""
+    def __init__(self, datamanager):
+        """Store datamanager and require a loaded DataFrame.
+        This class assumes the provided datamanager already has a loaded DataFrame available at `datamanager.df`.
+        We check once on init and store the datamanager on the instance so methods can use it directly.
+        """
         if not hasattr(datamanager, "df") or datamanager.df is None:
-            raise RuntimeError("\ndatamanager has no loaded DataFrame (df is None)")
+            raise RuntimeError("Datamanager must have a loaded DataFrame (datamanager.df is None)")
+        self.datamanager = datamanager
 
-        data_quality = await datamanager.get_data_quality_report()
+    async def drop_constant_columns(self):
+        """Inspect the data quality report for constant columns and drop them."""
+        data_quality = await self.datamanager.get_data_quality_report()
         const_cols = data_quality.get("constant_columns", [])
 
         if not const_cols:
             print("\nNo constant columns detected.")
-            return []
+            return
 
-        datamanager.df = datamanager.df.drop(columns=const_cols)
+        self.datamanager.df.drop(columns=const_cols, inplace=True)
         print(f"\nDropped constant columns: {const_cols}")
 
 
-    async def handle_missing_values(self, datamanager, threshold: float = 50.0):
+    async def handle_missing_values(self, threshold: float = 50.0):
         """
         Inspect data quality report and:
          - drop columns with completeness_rate < threshold
          - for remaining columns with missing values, impute selected text columns with "missing"
         """
-        if not hasattr(datamanager, "df") or datamanager.df is None:
-            raise RuntimeError("\ndatamanager has no loaded DataFrame (df is None)")
-
         # obtain report
-        data_quality = await datamanager.get_data_quality_report()
-        
+        data_quality = await self.datamanager.get_data_quality_report()
+
         missing_data_cols = data_quality.get('completeness', {})
         # Determine columns to drop based on high missing percentage
         cols_to_drop = [col for col, stats in missing_data_cols.items()
@@ -42,21 +45,21 @@ class Preprocessor:
 
         if cols_to_drop:
             print(f"\nDropping columns with high missing data: {cols_to_drop}")
-            datamanager.df = datamanager.df.drop(columns=cols_to_drop)
+            self.datamanager.df.drop(columns=cols_to_drop, inplace=True)
 
         # Handle missing values in remaining columns
         remaining_missing_cols = {col: stats for col, stats in missing_data_cols.items()
-                                  if col in datamanager.df.columns and stats.get('missing_count', 0) > 0}
+                                  if col in self.datamanager.df.columns and stats.get('missing_count', 0) > 0}
 
         for col, stats in remaining_missing_cols.items():
             missing_percentage = 100.0 - float(stats.get('completeness_rate', 100))
             print(f"\nHandling missing values in '{col}' ({missing_percentage:.1f}% missing)")
 
             if col in ['Subject', 'X-To', 'X-FileName']:
-                datamanager.df[col] = datamanager.df[col].fillna("missing")
+                self.datamanager.df[col] = self.datamanager.df[col].fillna("missing")
                 print(f"\nImputed missing values in '{col}' with 'missing'")
     
-    async def create_text_features(self, datamanager, top_k_domains: int = 50):
+    async def create_text_features(self, top_k_domains: int = 50):
         """
         Adds to datamanager.df:
           - text_combined: Subject + ' ' + Body
@@ -66,15 +69,13 @@ class Preprocessor:
         Encodes sender_domain and recipient_domain as one-hot columns and sets
         datamanager.encoded_feature_columns to the list of created feature names.
         """
-        if not hasattr(datamanager, "df") or datamanager.df is None:
-            raise RuntimeError("datamanager has no loaded DataFrame (df is None)")
+        df = self.datamanager.df
 
-        df = datamanager.df
-
-        # Safely combine Subject and Body
-        subj = df.get('Subject', pd.Series([], dtype=str)).fillna("").astype(str)
-        body = df.get('Body', pd.Series([], dtype=str)).fillna("").astype(str)
-        df['text_combined'] = (subj + ' ' + body).str.strip()
+        if 'text_combined' not in df.columns:
+            # Safely combine Subject and Body
+            subj = df.get('Subject', pd.Series([], dtype=str)).fillna("").astype(str)
+            body = df.get('Body', pd.Series([], dtype=str)).fillna("").astype(str)
+            df['text_combined'] = (subj + ' ' + body).str.strip()
 
         # Basic text-derived features
         df['text_length'] = df['text_combined'].str.len().fillna(0).astype(int)
@@ -99,13 +100,8 @@ class Preprocessor:
         print(df[['sender_domain', 'recipient_domain']].head())
 
         # One-hot encode only the top-k domains to avoid explosion in column count
-        try:
-            top_k = int(top_k_domains) if top_k_domains is not None else 50
-        except Exception:
-            top_k = 50
-
-        sender_top = df['sender_domain'].value_counts().nlargest(top_k).index.tolist()
-        recipient_top = df['recipient_domain'].value_counts().nlargest(top_k).index.tolist()
+        sender_top = df['sender_domain'].value_counts().nlargest(top_k_domains).index.tolist()
+        recipient_top = df['recipient_domain'].value_counts().nlargest(top_k_domains).index.tolist()
 
         df['sender_domain_trunc'] = df['sender_domain'].where(df['sender_domain'].isin(sender_top), other='other')
         df['recipient_domain_trunc'] = df['recipient_domain'].where(df['recipient_domain'].isin(recipient_top), other='other')
@@ -116,7 +112,7 @@ class Preprocessor:
 
             # Concat encoded columns
             df = pd.concat([df, sender_dummies, recipient_dummies], axis=1)
-            datamanager.df = df
+            self.datamanager.df = df
 
             # Collect feature column names
             encoded_cols = list(sender_dummies.columns) + list(recipient_dummies.columns)
@@ -125,15 +121,15 @@ class Preprocessor:
             print("MemoryError while one-hot encoding domains; falling back to label encoding for domains.")
             df['sender_domain_label'] = pd.factorize(df['sender_domain'])[0].astype(np.int32)
             df['recipient_domain_label'] = pd.factorize(df['recipient_domain'])[0].astype(np.int32)
-            datamanager.df = df
+            self.datamanager.df = df
             encoded_cols = ['sender_domain_label', 'recipient_domain_label']
         feature_cols = ['text_length', 'contains_urls', 'contains_email_addresses', 'contains_phone_numbers', 'contains_money_symbols'] + encoded_cols
-        setattr(datamanager, 'encoded_feature_columns', feature_cols)
+        setattr(self.datamanager, 'encoded_feature_columns', feature_cols)
 
         print(f"Created {len(feature_cols)} ML feature columns (stored in datamanager.encoded_feature_columns)")
         return feature_cols
     
-    async def vectorize_text(self, datamanager, 
+    async def vectorize_text(self, 
                              text_columns: list | None = None,
                              vectorizer_type: str = "tfidf",
                              ngram_range: tuple = (1, 2),
@@ -143,20 +139,26 @@ class Preprocessor:
         Either fits and stores a new vectorizer or load one if already computed.
         Returns the feature matrix on success.
         """
-        if not hasattr(datamanager, "df") or datamanager.df is None:
-            raise RuntimeError("datamanager has no loaded DataFrame (df is None)")
+        # create local reference to avoid repeated attribute lookups
+        df = self.datamanager.df
 
-        # default text columns: prefer combined text if available
+        # default text columns: always use a single 'text_combined' column
         if text_columns is None:
-            if 'text_combined' in datamanager.df.columns:
+            if 'text_combined' in df.columns:
                 text_columns = ['text_combined']
             else:
-                text_columns = ["Subject", "Body"]
+                # Safely combine Subject and Body into text_combined (handles missing cols)
+                subj = df.get('Subject', pd.Series([], dtype=str)).fillna("").astype(str)
+                body = df.get('Body', pd.Series([], dtype=str)).fillna("").astype(str)
+                df['text_combined'] = (subj + ' ' + body).str.strip()
+                # write back to datamanager
+                self.datamanager.df = df
+                text_columns = ['text_combined']
 
         # Combine selected text columns into a single text series
-        texts = datamanager.df[text_columns[0]].fillna("").astype(str)
+        texts = df[text_columns[0]].fillna("").astype(str)
         for col in text_columns[1:]:
-            texts = texts + " " + datamanager.df[col].fillna("").astype(str)
+            texts = texts + " " + df[col].fillna("").astype(str)
 
         # create cache folder path under app/vectorizers
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'vectorizers'))
@@ -173,9 +175,9 @@ class Preprocessor:
             try:
                 vectorizer = joblib.load(fpath)
                 X = vectorizer.transform(texts)
-                setattr(datamanager, "X_processed", X)
-                setattr(datamanager, "vectorizer", vectorizer)
-                setattr(datamanager, "text_columns_used", text_columns)
+                setattr(self.datamanager, "X_processed", X)
+                setattr(self.datamanager, "vectorizer", vectorizer)
+                setattr(self.datamanager, "text_columns_used", text_columns)
                 print(f"Loaded vectorizer from cache: {fpath}. Feature matrix shape: {X.shape}")
                 return X
             except Exception as e:
@@ -185,15 +187,14 @@ class Preprocessor:
         if vectorizer_type.lower() != "tfidf":
             raise ValueError(f"Unsupported vectorizer_type: {vectorizer_type}")
 
-        vectorizer = TfidfVectorizer(lowercase=True, strip_accents="unicode",
-                                     ngram_range=ngram_range, max_features=max_features)
+        vectorizer = TfidfVectorizer(strip_accents="unicode", ngram_range=ngram_range, max_features=max_features)
 
         X = vectorizer.fit_transform(texts)
 
         # store results on datamanager for downstream use
-        setattr(datamanager, "X_processed", X)
-        setattr(datamanager, "vectorizer", vectorizer)
-        setattr(datamanager, "text_columns_used", text_columns)
+        setattr(self.datamanager, "X_processed", X)
+        setattr(self.datamanager, "vectorizer", vectorizer)
+        setattr(self.datamanager, "text_columns_used", text_columns)
 
         # persist vectorizer to cache for future runs
         try:

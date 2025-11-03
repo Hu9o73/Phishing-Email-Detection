@@ -4,21 +4,10 @@ from halo import Halo
 
 from app.services.datamanager import datamanager
 from app.services.printers.data_information_printer import DataInformationPrinter
+from app.services.inputs import ask_for_integer, ask_for_float, ask_yes_no, ask_for_range
 
 def clear_console():
     subprocess.run('cls' if sys.platform == 'win32' else 'clear', shell=True)
-
-def ask_for_integer(min: int | None = None, max: int | None = None) -> int | None:
-    try:
-        user_input = int(input(""))
-    except Exception:
-        return None
-    if min is not None and user_input < min:
-        return None
-    if max is not None and user_input > max:
-        return None
-    return user_input
-
 
 async def load_the_dataset():
     spinner = Halo(text='Loading dataset...', spinner='dots')
@@ -56,28 +45,16 @@ async def get_info_about_dataset():
 
 
 async def preprocess_data():
-    """Run lightweight preprocessing (missing-value handling) using the datamanager.
-
-    This function will compute dataset statistics (async) and then call the
-    datamanager's preprocessing routine which mutates `datamanager.df`.
-    """
+    """Preprocess the dataset by handling quality issues, feature engineering, and text vectorization."""
     if datamanager.df is None:
         print("Please load the dataset first.")
         return
     
     print("--- Data Preprocessing ---")
 
-    # Ask for threshold for dropping columns
-    threshold_input = input("Drop columns with completeness < (percent, default 50): ").strip()
-    try:
-        threshold = float(threshold_input) if threshold_input else 50.0
-    except Exception:
-        print("Invalid threshold value, using default 50")
-        threshold = 50.0
+    threshold = ask_for_float("Drop columns with completeness < (percent)", default=50.0, min=0.0, max=100.0)
 
-    # Ask user whether to drop constant columns (default: yes)
-    drop_input = input("Drop all constant columns? [Y/n] ").strip().lower()
-    drop_constants = not (drop_input in ['N', 'No', 'n', 'no'])
+    drop_constants = ask_yes_no("Drop all constant columns?", default=True)
 
     spinner = Halo(text='Handling quality issues...', spinner='dots')
     spinner.start()
@@ -87,48 +64,30 @@ async def preprocess_data():
     except Exception as e:
         spinner.fail(f'Handling quality issues failed: {e}')
 
-    # Ask whether to create ML feature columns (text-derived + domains + one-hot)
-    fe_input = input("Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)? [Y/n] ").strip().lower()
-    create_features = not (fe_input in ['N', 'No', 'n', 'no'])
+    print("\n--- Feature Engineering ---")
+    create_features = ask_yes_no("Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)?", default=True)
     if create_features:
+        top_k = ask_for_integer("Max number of top domains to one-hot encode", default=50, min=1)
         fe_spinner = Halo(text='Creating ML feature columns...', spinner='dots')
         fe_spinner.start()
         try:
-            await datamanager.run_feature_engineering()
+            await datamanager.run_feature_engineering(top_k_domains=top_k)
             fe_spinner.succeed('Feature creation complete!')
         except Exception as e:
             fe_spinner.fail(f'Feature creation failed: {e}')
 
-    # Ask whether to vectorize text for ML
-    vec_input = input("Vectorize text for ML now? [Y/n] ").strip().lower()
-    do_vectorize = not (vec_input in ['N', 'No', 'n', 'no'])
-    if do_vectorize == False:
+    do_vectorize = ask_yes_no("Vectorize text for ML now?", default=True)
+    if not do_vectorize:
         return
+    
     print("\n--- Text Vectorization Parameters ---")
-    ngram_input = input("n-gram range (min-max, default 1-2): ").strip()
-    try:
-        if ngram_input:
-            parts = [int(p) for p in ngram_input.split("-")]
-            ngram_range = (parts[0], parts[1]) if len(parts) >= 2 else (parts[0], parts[0])
-        else:
-            ngram_range = (1, 2)
-    except Exception:
-        print("Invalid ngram range, using default (1,2)")
-        ngram_range = (1, 2)
-
-    maxf_input = input("Max features for vectorizer (default 10000): ").strip()
-    try:
-        max_features = int(maxf_input) if maxf_input else 10000
-    except Exception:
-        print("Invalid max_features, using default 10000")
-        max_features = 10000
+    ngram_range = ask_for_range("N-gram range (min-max)", default=(1, 2))
+    max_features = ask_for_integer("Max features for vectorizer", default=10000, min=100)
 
     spinner = Halo(text='Vectorizing text...', spinner='dots')
     spinner.start()
     try:
-        X = await datamanager.run_vectorization(vectorizer_type='tfidf',
-                                                ngram_range=ngram_range,
-                                                max_features=max_features)
+        X = await datamanager.run_vectorization(ngram_range=ngram_range, max_features=max_features)
         spinner.succeed('Vectorization complete!')
         # Report shape if available
         try:
@@ -154,7 +113,7 @@ async def menu():
             print(f"[{key}] {desc}")
         print("[0] Exit")
 
-        choice = ask_for_integer(0, len(options))
+        choice = ask_for_integer("Choose", default=None, min=0, max=len(options))
         if choice is None:
             continue
 
