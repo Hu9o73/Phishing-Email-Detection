@@ -1,6 +1,8 @@
-import pandas as pd
+from typing import Any, Dict
+
 import kagglehub
-from typing import Dict, Any
+import pandas as pd
+
 from app.services.preprocessing import Preprocessor
 
 
@@ -205,7 +207,9 @@ class DataManager:
             "completeness": completeness,
             "constant_columns": constant_cols,
             "potential_issues": issues,
-            "overall_quality_score": sum(stats["completeness_rate"] for stats in completeness.values()) / len(completeness)
+            "overall_quality_score":
+                sum(stats["completeness_rate"] for stats in completeness.values()) / len(completeness),
+
         }
 
     async def get_comprehensive_stats(self) -> Dict[str, Any]:
@@ -216,7 +220,7 @@ class DataManager:
             "email_specific_stats": await self.get_email_specific_stats(),
             "data_quality": await self.get_data_quality_report()
         }
-    
+
     async def handle_quality_issues(self, drop_constants: bool = True, threshold: float = 50.0):
         """Runs preprocessing steps from preprocessing.py"""
         pre = Preprocessor(self)

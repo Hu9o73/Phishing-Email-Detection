@@ -1,10 +1,12 @@
 import subprocess
 import sys
+
 from halo import Halo
 
 from app.services.datamanager import datamanager
+from app.services.inputs import ask_for_float, ask_for_integer, ask_for_range, ask_yes_no
 from app.services.printers.data_information_printer import DataInformationPrinter
-from app.services.inputs import ask_for_integer, ask_for_float, ask_yes_no, ask_for_range
+
 
 def clear_console():
     subprocess.run('cls' if sys.platform == 'win32' else 'clear', shell=True)
@@ -49,7 +51,7 @@ async def preprocess_data():
     if datamanager.df is None:
         print("Please load the dataset first.")
         return
-    
+
     print("--- Data Preprocessing ---")
 
     threshold = ask_for_float("Drop columns with completeness < (percent)", default=50.0, min=0.0, max=100.0)
@@ -65,7 +67,9 @@ async def preprocess_data():
         spinner.fail(f'Handling quality issues failed: {e}')
 
     print("\n--- Feature Engineering ---")
-    create_features = ask_yes_no("Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)?", default=True)
+    create_features = ask_yes_no(
+        "Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)?", default=True
+    )
     if create_features:
         top_k = ask_for_integer("Max number of top domains to one-hot encode", default=50, min=1)
         fe_spinner = Halo(text='Creating ML feature columns...', spinner='dots')
@@ -79,7 +83,7 @@ async def preprocess_data():
     do_vectorize = ask_yes_no("Vectorize text for ML now?", default=True)
     if not do_vectorize:
         return
-    
+
     print("\n--- Text Vectorization Parameters ---")
     ngram_range = ask_for_range("N-gram range (min-max)", default=(1, 2))
     max_features = ask_for_integer("Max features for vectorizer", default=10000, min=100)

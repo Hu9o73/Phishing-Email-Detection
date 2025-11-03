@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 from app.services.printers.printer import Printer
 
+
 class DataInformationPrinter(Printer):
     def __init__(self, stats: Dict[str, Any]):
         self.stats = stats
@@ -78,9 +79,9 @@ class DataInformationPrinter(Printer):
                 urgent_ratio = stats.get("subjects_with_urgent_words", 0) / stats["total_samples"] * 100
                 caps_ratio = stats.get("subjects_all_caps", 0) / stats["total_samples"] * 100
                 if urgent_ratio > 5:
-                    print(f"\t/!\ High urgent keyword usage ({urgent_ratio:.1f}%) - potential phishing indicator")
+                    print(f"\t/!\\ High urgent keyword usage ({urgent_ratio:.1f}%) - potential phishing indicator")
                 if caps_ratio > 3:
-                    print(f"\t/!\ High all-caps usage ({caps_ratio:.1f}%) - potential spam/phishing indicator")
+                    print(f"\t/!\\ High all-caps usage ({caps_ratio:.1f}%) - potential spam/phishing indicator")
 
             elif col_name == "Body":
                 print("\n\t Body-Specific Patterns:")
@@ -164,6 +165,6 @@ class DataInformationPrinter(Printer):
 
         issues = quality_report.get("potential_issues", [])
         if issues:
-            print("\n/!\  Potential Issues:")
+            print("\n/!\\  Potential Issues:")
             for issue in issues:
                 print(f"\t- {issue}")

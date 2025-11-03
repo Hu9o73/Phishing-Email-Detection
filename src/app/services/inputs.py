@@ -1,5 +1,3 @@
-"""Input helpers for consistent user interaction."""
-
 def ask_for_integer(prompt: str, default: int | None = None, min: int | None = None, max: int | None = None) -> int:
     """Ask for an integer with optional default value and range limits."""
     default_str = f" (default: {default})" if default is not None else ""
@@ -23,7 +21,9 @@ def ask_for_integer(prompt: str, default: int | None = None, min: int | None = N
                 return default
             print("Please enter a valid integer")
 
-def ask_for_float(prompt: str, default: float | None = None, min: float | None = None, max: float | None = None) -> float:
+def ask_for_float(
+    prompt: str, default: float | None = None, min: float | None = None, max: float | None = None
+) -> float:
     """Ask for a float with optional default value and range limits."""
     default_str = f" (default: {default})" if default is not None else ""
     range_str = f" [{min}-{max}]" if min is not None and max is not None else ""

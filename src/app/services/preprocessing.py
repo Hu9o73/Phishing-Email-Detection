@@ -1,8 +1,10 @@
-from sklearn.feature_extraction.text import TfidfVectorizer
 import os
+
 import joblib
-import pandas as pd
 import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+
 
 class Preprocessor:
     """Preprocessor that contains a sequence of procedures"""
@@ -58,7 +60,7 @@ class Preprocessor:
             if col in ['Subject', 'X-To', 'X-FileName']:
                 self.datamanager.df[col] = self.datamanager.df[col].fillna("missing")
                 print(f"\nImputed missing values in '{col}' with 'missing'")
-    
+
     async def create_text_features(self, top_k_domains: int = 50):
         """
         Adds to datamanager.df:
@@ -80,11 +82,25 @@ class Preprocessor:
         # Basic text-derived features
         df['text_length'] = df['text_combined'].str.len().fillna(0).astype(int)
         df['contains_urls'] = df['text_combined'].str.contains(r'https?://|www\.', case=False, na=False).astype(int)
-        df['contains_email_addresses'] = df['text_combined'].str.contains(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", na=False).astype(int)
-        df['contains_phone_numbers'] = df['text_combined'].str.contains(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", na=False).astype(int)
-        df['contains_money_symbols'] = df['text_combined'].str.contains(r"[\$£€¥]|\bmoney\b|\bcash\b|\bpayment\b", case=False, na=False).astype(int)
-        df['contains_mentions'] = df['text_combined'].str.contains(r"\battach|\bdocument\b|\bfile\b|\bdownload\b", case=False, na=False).astype(int)
-        
+        df['contains_email_addresses'] = (
+            df['text_combined'].str
+            .contains(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", na=False)
+            .astype(int)
+        )
+        df['contains_phone_numbers'] = (
+            df['text_combined'].str.contains(r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b", na=False).astype(int)
+        )
+        df['contains_money_symbols'] = (
+            df['text_combined'].str
+            .contains(r"[\$£€¥]|\bmoney\b|\bcash\b|\bpayment\b", case=False, na=False)
+            .astype(int)
+        )
+        df['contains_mentions'] = (
+            df['text_combined'].str
+            .contains(r"\battach|\bdocument\b|\bfile\b|\bdownload\b", case=False, na=False)
+            .astype(int)
+        )
+
         # Extract domains
         if 'X-From' in df.columns:
             df['sender_domain'] = df['X-From'].astype(str).str.extract(r"@([^@\s,<>]+)", expand=False).fillna('unknown')
@@ -92,7 +108,9 @@ class Preprocessor:
             df['sender_domain'] = 'unknown'
 
         if 'X-To' in df.columns:
-            df['recipient_domain'] = df['X-To'].astype(str).str.extract(r"@([^@\s,<>]+)", expand=False).fillna('unknown')
+            df['recipient_domain'] = (
+                df['X-To'].astype(str).str.extract(r"@([^@\s,<>]+)", expand=False).fillna('unknown')
+            )
         else:
             df['recipient_domain'] = 'unknown'
 
@@ -104,7 +122,9 @@ class Preprocessor:
         recipient_top = df['recipient_domain'].value_counts().nlargest(top_k_domains).index.tolist()
 
         df['sender_domain_trunc'] = df['sender_domain'].where(df['sender_domain'].isin(sender_top), other='other')
-        df['recipient_domain_trunc'] = df['recipient_domain'].where(df['recipient_domain'].isin(recipient_top), other='other')
+        df['recipient_domain_trunc'] = df['recipient_domain'].where(
+            df['recipient_domain'].isin(recipient_top), other='other'
+        )
 
         try:
             sender_dummies = pd.get_dummies(df['sender_domain_trunc'], prefix='sender_dom', dtype=np.uint8)
@@ -123,13 +143,19 @@ class Preprocessor:
             df['recipient_domain_label'] = pd.factorize(df['recipient_domain'])[0].astype(np.int32)
             self.datamanager.df = df
             encoded_cols = ['sender_domain_label', 'recipient_domain_label']
-        feature_cols = ['text_length', 'contains_urls', 'contains_email_addresses', 'contains_phone_numbers', 'contains_money_symbols'] + encoded_cols
+        feature_cols = [
+            'text_length',
+            'contains_urls',
+            'contains_email_addresses',
+            'contains_phone_numbers',
+            'contains_money_symbols'
+        ] + encoded_cols
         setattr(self.datamanager, 'encoded_feature_columns', feature_cols)
 
         print(f"Created {len(feature_cols)} ML feature columns (stored in datamanager.encoded_feature_columns)")
         return feature_cols
-    
-    async def vectorize_text(self, 
+
+    async def vectorize_text(self,
                              text_columns: list | None = None,
                              vectorizer_type: str = "tfidf",
                              ngram_range: tuple = (1, 2),
@@ -205,6 +231,6 @@ class Preprocessor:
 
         print(f"Vectorization complete. Feature matrix shape: {X.shape}")
         return X
-    
+
 
 
