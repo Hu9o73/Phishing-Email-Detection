@@ -1,24 +1,15 @@
 import subprocess
 import sys
+
 from halo import Halo
 
 from app.services.datamanager import datamanager
+from app.services.inputs import ask_for_float, ask_for_integer, ask_for_range, ask_yes_no
 from app.services.printers.data_information_printer import DataInformationPrinter
+
 
 def clear_console():
     subprocess.run('cls' if sys.platform == 'win32' else 'clear', shell=True)
-
-def ask_for_integer(min: int | None = None, max: int | None = None) -> int | None:
-    try:
-        user_input = int(input(""))
-    except Exception:
-        return None
-    if min is not None and user_input < min:
-        return None
-    if max is not None and user_input > max:
-        return None
-    return user_input
-
 
 async def load_the_dataset():
     spinner = Halo(text='Loading dataset...', spinner='dots')
@@ -55,10 +46,68 @@ async def get_info_about_dataset():
     data_printer.print_data_quality_report()
 
 
+async def preprocess_data():
+    """Preprocess the dataset by handling quality issues, feature engineering, and text vectorization."""
+    if datamanager.df is None:
+        print("Please load the dataset first.")
+        return
+
+    print("--- Data Preprocessing ---")
+
+    threshold = ask_for_float("Drop columns with completeness < (percent)", default=50.0, min=0.0, max=100.0)
+
+    drop_constants = ask_yes_no("Drop all constant columns?", default=True)
+
+    spinner = Halo(text='Handling quality issues...', spinner='dots')
+    spinner.start()
+    try:
+        await datamanager.handle_quality_issues(drop_constants=drop_constants, threshold=threshold)
+        spinner.succeed('Data quality issues treated!')
+    except Exception as e:
+        spinner.fail(f'Handling quality issues failed: {e}')
+
+    print("\n--- Feature Engineering ---")
+    create_features = ask_yes_no(
+        "Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)?", default=True
+    )
+    if create_features:
+        top_k = ask_for_integer("Max number of top domains to one-hot encode", default=50, min=1)
+        fe_spinner = Halo(text='Creating ML feature columns...', spinner='dots')
+        fe_spinner.start()
+        try:
+            await datamanager.run_feature_engineering(top_k_domains=top_k)
+            fe_spinner.succeed('Feature creation complete!')
+        except Exception as e:
+            fe_spinner.fail(f'Feature creation failed: {e}')
+
+    do_vectorize = ask_yes_no("Vectorize text for ML now?", default=True)
+    if not do_vectorize:
+        return
+
+    print("\n--- Text Vectorization Parameters ---")
+    ngram_range = ask_for_range("N-gram range (min-max)", default=(1, 2))
+    max_features = ask_for_integer("Max features for vectorizer", default=10000, min=100)
+
+    spinner = Halo(text='Vectorizing text...', spinner='dots')
+    spinner.start()
+    try:
+        X = await datamanager.run_vectorization(ngram_range=ngram_range, max_features=max_features)
+        spinner.succeed('Vectorization complete!')
+        # Report shape if available
+        try:
+            print(f"Feature matrix shape: {getattr(X, 'shape', None)}")
+        except Exception:
+            pass
+    except Exception as e:
+        spinner.fail(f'Vectorization failed: {e}')
+    return
+
+
 async def menu():
     options = {
         1: ("Load the dataset", load_the_dataset),
         2: ("Get information about the dataset", get_info_about_dataset),
+        3: ("Preprocess data", preprocess_data)
     }
 
     while True:
@@ -68,7 +117,7 @@ async def menu():
             print(f"[{key}] {desc}")
         print("[0] Exit")
 
-        choice = ask_for_integer(0, len(options))
+        choice = ask_for_integer("Choose", default=None, min=0, max=len(options))
         if choice is None:
             continue
 

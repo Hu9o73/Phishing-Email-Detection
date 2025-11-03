@@ -1,6 +1,9 @@
-import pandas as pd
+from typing import Any, Literal
+
 import kagglehub
-from typing import Dict, Any
+import pandas as pd
+
+from app.services.preprocessing import Preprocessor
 
 
 class DataManager:
@@ -17,7 +20,7 @@ class DataManager:
         self.df = dataframe
         return dataframe
 
-    async def get_basic_info(self) -> Dict[str, Any]:
+    async def get_basic_info(self) -> dict:
         if self.df is None:
             return {}
         return {
@@ -29,7 +32,7 @@ class DataManager:
             "duplicate_rows": self.df.duplicated().sum()
         }
 
-    async def get_target_distribution(self) -> Dict[str, Any]:
+    async def get_target_distribution(self) -> dict:
         if self.df is None:
             return {}
 
@@ -47,7 +50,7 @@ class DataManager:
             "class_balance_ratio": value_counts.min() / value_counts.max() if len(value_counts) > 1 else 1.0
         }
 
-    async def get_text_statistics(self) -> Dict[str, Any]:
+    async def get_text_statistics(self) -> dict:
         """Analyze text-based columns (Subject and Body)"""
         if self.df is None:
             return {}
@@ -119,7 +122,7 @@ class DataManager:
 
         return text_stats
 
-    async def get_email_specific_stats(self) -> Dict[str, Any]:
+    async def get_email_specific_stats(self) -> dict:
         if self.df is None:
             return {}
 
@@ -169,7 +172,7 @@ class DataManager:
 
         return stats
 
-    async def get_data_quality_report(self) -> Dict[str, Any]:
+    async def get_data_quality_report(self) -> dict:
         if self.df is None:
             return {}
 
@@ -186,8 +189,7 @@ class DataManager:
         issues = []
 
         # Check for columns with high missing data
-        high_missing = [col for col, stats in completeness.items()
-                       if stats["completeness_rate"] < 50]
+        high_missing = [col for col, stats in completeness.items() if stats["completeness_rate"] < 50]
         if high_missing:
             issues.append(f"High missing data (>50%): {", ".join(high_missing)}")
 
@@ -202,11 +204,14 @@ class DataManager:
 
         return {
             "completeness": completeness,
+            "constant_columns": constant_cols,
             "potential_issues": issues,
-            "overall_quality_score": sum(stats["completeness_rate"] for stats in completeness.values()) / len(completeness)
+            "overall_quality_score":
+                sum(stats["completeness_rate"] for stats in completeness.values()) / len(completeness),
+
         }
 
-    async def get_comprehensive_stats(self) -> Dict[str, Any]:
+    async def get_comprehensive_stats(self) -> dict:
         return {
             "basic_info": await self.get_basic_info(),
             "target_distribution": await self.get_target_distribution(),
@@ -214,6 +219,43 @@ class DataManager:
             "email_specific_stats": await self.get_email_specific_stats(),
             "data_quality": await self.get_data_quality_report()
         }
+
+    async def handle_quality_issues(self, drop_constants: bool = True, threshold: float = 50.0):
+        """Runs preprocessing steps from preprocessing.py"""
+        pre = Preprocessor(self)
+        try:
+            if drop_constants:
+                await pre.drop_constant_columns()
+            await pre.handle_missing_values(threshold=threshold)
+            return self.df
+        except Exception:
+            raise
+
+    async def run_feature_engineering(self, top_k_domains: int):
+        """Create ML-ready feature columns (text-derived and encoded domains)."""
+        pre = Preprocessor(self)
+        try:
+            feature_cols = await pre.create_text_features(top_k_domains=top_k_domains)
+            return feature_cols
+        except Exception:
+            raise
+
+    async def run_vectorization(
+            self,
+            text_columns: list | None = None,
+            vectorizer_type: Literal["tfidf"] = "tfidf",
+            ngram_range: tuple = (1, 2),
+            max_features: int = 10000
+        ):
+        """Run text vectorization using Preprocessor and store results on self."""
+        pre = Preprocessor(self)
+        try:
+            X = await pre.vectorize_text(
+                text_columns, vectorizer_type, ngram_range, max_features
+            )
+            return X
+        except Exception:
+            raise
 
 
 datamanager = DataManager()
