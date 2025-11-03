@@ -7,19 +7,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 class Preprocessor:
-    """Preprocessor that contains a sequence of procedures"""
 
     def __init__(self, datamanager):
-        """Store datamanager and require a loaded DataFrame.
-        This class assumes the provided datamanager already has a loaded DataFrame available at `datamanager.df`.
-        We check once on init and store the datamanager on the instance so methods can use it directly.
-        """
         if not hasattr(datamanager, "df") or datamanager.df is None:
             raise RuntimeError("Datamanager must have a loaded DataFrame (datamanager.df is None)")
         self.datamanager = datamanager
 
     async def drop_constant_columns(self):
-        """Inspect the data quality report for constant columns and drop them."""
         data_quality = await self.datamanager.get_data_quality_report()
         const_cols = data_quality.get("constant_columns", [])
 
@@ -32,11 +26,6 @@ class Preprocessor:
 
 
     async def handle_missing_values(self, threshold: float = 50.0):
-        """
-        Inspect data quality report and:
-         - drop columns with completeness_rate < threshold
-         - for remaining columns with missing values, impute selected text columns with "missing"
-        """
         # obtain report
         data_quality = await self.datamanager.get_data_quality_report()
 
@@ -155,17 +144,14 @@ class Preprocessor:
         print(f"Created {len(feature_cols)} ML feature columns (stored in datamanager.encoded_feature_columns)")
         return feature_cols
 
-    async def vectorize_text(self,
-                             text_columns: list | None = None,
-                             vectorizer_type: str = "tfidf",
-                             ngram_range: tuple = (1, 2),
-                             max_features: int = 10000):
-        """
-        Convert text columns into numeric vectors suitable for ML.
-        Either fits and stores a new vectorizer or load one if already computed.
-        Returns the feature matrix on success.
-        """
-        # create local reference to avoid repeated attribute lookups
+    async def vectorize_text(
+            self,
+            text_columns: list | None = None,
+            vectorizer_type: str = "tfidf",
+            ngram_range: tuple = (1, 2),
+            max_features: int = 10000,
+        ):
+
         df = self.datamanager.df
 
         # default text columns: always use a single 'text_combined' column
@@ -231,6 +217,3 @@ class Preprocessor:
 
         print(f"Vectorization complete. Feature matrix shape: {X.shape}")
         return X
-
-
-

@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Literal
 
 import kagglehub
 import pandas as pd
@@ -20,7 +20,7 @@ class DataManager:
         self.df = dataframe
         return dataframe
 
-    async def get_basic_info(self) -> Dict[str, Any]:
+    async def get_basic_info(self) -> dict:
         if self.df is None:
             return {}
         return {
@@ -32,7 +32,7 @@ class DataManager:
             "duplicate_rows": self.df.duplicated().sum()
         }
 
-    async def get_target_distribution(self) -> Dict[str, Any]:
+    async def get_target_distribution(self) -> dict:
         if self.df is None:
             return {}
 
@@ -50,7 +50,7 @@ class DataManager:
             "class_balance_ratio": value_counts.min() / value_counts.max() if len(value_counts) > 1 else 1.0
         }
 
-    async def get_text_statistics(self) -> Dict[str, Any]:
+    async def get_text_statistics(self) -> dict:
         """Analyze text-based columns (Subject and Body)"""
         if self.df is None:
             return {}
@@ -122,7 +122,7 @@ class DataManager:
 
         return text_stats
 
-    async def get_email_specific_stats(self) -> Dict[str, Any]:
+    async def get_email_specific_stats(self) -> dict:
         if self.df is None:
             return {}
 
@@ -172,7 +172,7 @@ class DataManager:
 
         return stats
 
-    async def get_data_quality_report(self) -> Dict[str, Any]:
+    async def get_data_quality_report(self) -> dict:
         if self.df is None:
             return {}
 
@@ -189,8 +189,7 @@ class DataManager:
         issues = []
 
         # Check for columns with high missing data
-        high_missing = [col for col, stats in completeness.items()
-                       if stats["completeness_rate"] < 50]
+        high_missing = [col for col, stats in completeness.items() if stats["completeness_rate"] < 50]
         if high_missing:
             issues.append(f"High missing data (>50%): {", ".join(high_missing)}")
 
@@ -212,7 +211,7 @@ class DataManager:
 
         }
 
-    async def get_comprehensive_stats(self) -> Dict[str, Any]:
+    async def get_comprehensive_stats(self) -> dict:
         return {
             "basic_info": await self.get_basic_info(),
             "target_distribution": await self.get_target_distribution(),
@@ -232,7 +231,7 @@ class DataManager:
         except Exception:
             raise
 
-    async def run_feature_engineering(self, top_k_domains: int = 50):
+    async def run_feature_engineering(self, top_k_domains: int):
         """Create ML-ready feature columns (text-derived and encoded domains)."""
         pre = Preprocessor(self)
         try:
@@ -244,7 +243,7 @@ class DataManager:
     async def run_vectorization(
             self,
             text_columns: list | None = None,
-            vectorizer_type: str = "tfidf",
+            vectorizer_type: Literal["tfidf"] = "tfidf",
             ngram_range: tuple = (1, 2),
             max_features: int = 10000
         ):
@@ -252,10 +251,7 @@ class DataManager:
         pre = Preprocessor(self)
         try:
             X = await pre.vectorize_text(
-                text_columns=text_columns,
-                vectorizer_type=vectorizer_type,
-                ngram_range=ngram_range,
-                max_features=max_features
+                text_columns, vectorizer_type, ngram_range, max_features
             )
             return X
         except Exception:

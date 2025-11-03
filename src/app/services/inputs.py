@@ -1,5 +1,4 @@
 def ask_for_integer(prompt: str, default: int | None = None, min: int | None = None, max: int | None = None) -> int:
-    """Ask for an integer with optional default value and range limits."""
     default_str = f" (default: {default})" if default is not None else ""
     range_str = f" [{min}-{max}]" if min is not None and max is not None else ""
     while True:
@@ -21,10 +20,10 @@ def ask_for_integer(prompt: str, default: int | None = None, min: int | None = N
                 return default
             print("Please enter a valid integer")
 
+
 def ask_for_float(
     prompt: str, default: float | None = None, min: float | None = None, max: float | None = None
 ) -> float:
-    """Ask for a float with optional default value and range limits."""
     default_str = f" (default: {default})" if default is not None else ""
     range_str = f" [{min}-{max}]" if min is not None and max is not None else ""
     while True:
@@ -46,8 +45,8 @@ def ask_for_float(
                 return default
             print("Please enter a valid number")
 
+
 def ask_yes_no(prompt: str, default: bool = True) -> bool:
-    """Ask a yes/no question with a default value."""
     default_str = "[Y/n]" if default else "[y/N]"
     while True:
         user_input = input(f"{prompt} {default_str} ").strip().lower()
@@ -59,8 +58,8 @@ def ask_yes_no(prompt: str, default: bool = True) -> bool:
             return False
         print("Please answer 'y' or 'n'")
 
+
 def ask_for_range(prompt: str, default: tuple = (1, 2)) -> tuple[int, int]:
-    """Ask for a range of integers with format 'min-max'."""
     default_str = f"{default[0]}-{default[1]}"
     while True:
         try:
