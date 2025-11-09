@@ -4,6 +4,7 @@ import sys
 from halo import Halo
 
 from app.services.datamanager import datamanager
+from app.services.modelmanager import ModelManager
 from app.services.inputs import ask_for_float, ask_for_integer, ask_for_range, ask_yes_no
 from app.services.printers.data_information_printer import DataInformationPrinter
 
@@ -103,11 +104,46 @@ async def preprocess_data():
     return
 
 
+modelmanager = ModelManager(datamanager)
+
+
+async def train_model_menu():
+    print("\nChoose a model to train:")
+    print("1. Random Forest")
+    print("2. Stochastic Gradient Descent (SGD)")
+
+    choice = int(input("Enter choice: "))
+    if choice == 1:
+        modelmanager.train_model("random_forest")
+    elif choice == 2:
+        modelmanager.train_model("sgd")
+    else:
+        print("Invalid choice.")
+        return
+
+    save = input("Do you want to save this model? (y/n): ").lower()
+    if save == "y":
+        modelmanager.save_model()
+
+async def load_saved_model():
+    model_name = input("Enter the model name (e.g., RandomForest or SGDClassifier): ")
+    modelmanager.load_model(model_name)
+
+async def continue_training_model():
+    modelmanager.continue_training()
+    save = input("Save the updated model? (y/n): ").lower()
+    if save == "y":
+        modelmanager.save_model()
+
+
 async def menu():
     options = {
         1: ("Load the dataset", load_the_dataset),
         2: ("Get information about the dataset", get_info_about_dataset),
-        3: ("Preprocess data", preprocess_data)
+        3: ("Preprocess data", preprocess_data),
+        4: ("Train a classical ML model", train_model_menu),
+        5: ("Load a saved model", load_saved_model),
+        6: ("Continue training a loaded model", continue_training_model)
     }
 
     while True:
