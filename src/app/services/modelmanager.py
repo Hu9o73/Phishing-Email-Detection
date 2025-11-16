@@ -7,21 +7,23 @@ from sklearn.metrics import classification_report, accuracy_score
 
 
 class ModelManager:
-    
+
     def __init__(self, datamanager):
         self.dm = datamanager
         self.model = None
         self.model_name = None
-        self.models_dir = os.path.join("models")
+        self.models_dir = "models"
         os.makedirs(self.models_dir, exist_ok=True)
 
     # -----------------------------
     # Data preparation
     # -----------------------------
     def get_features_and_labels(self):
-        
+        """Retrieve processed features (X) and labels (y)."""
+
         if getattr(self.dm, "X_processed", None) is None:
             raise ValueError("Data not vectorized yet. Please preprocess first.")
+
         if "Label" not in self.dm.df.columns:
             raise ValueError("No 'Label' column found in dataset.")
 
@@ -33,9 +35,10 @@ class ModelManager:
     # Training
     # -----------------------------
     def train_model(self, model_type="RandomForest"):
+        """Train a classical ML model (RandomForest or SGDClassifier)."""
 
-        #Train a classical ML model (RandomForest or SGDClassifier)."""
         X, y = self.get_features_and_labels()
+
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
@@ -45,11 +48,17 @@ class ModelManager:
         if model_type == "random_forest":
             self.model_name = "RandomForest"
             self.model = RandomForestClassifier(
-                n_estimators=100, random_state=42, n_jobs=-1
+                n_estimators=100,
+                random_state=42,
+                n_jobs=-1
             )
         elif model_type == "sgd":
             self.model_name = "SGDClassifier"
-            self.model = SGDClassifier(loss="log_loss", max_iter=1000, random_state=42)
+            self.model = SGDClassifier(
+                loss="log_loss",
+                max_iter=1000,
+                random_state=42
+            )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
@@ -65,6 +74,7 @@ class ModelManager:
     # Saving and loading
     # -----------------------------
     def save_model(self):
+        """Save the trained model to /models."""
         
         if self.model is None:
             print("No model trained yet.")
@@ -75,6 +85,7 @@ class ModelManager:
         print(f"\n💾 Model saved to {path}")
 
     def load_model(self, model_name):
+        """Load a saved model from /models by name."""
     
         path = os.path.join(self.models_dir, f"{model_name}.joblib")
 
@@ -90,6 +101,7 @@ class ModelManager:
     # Continue training
     # -----------------------------
     def continue_training(self):
+        """Continue training an already-loaded model using the entire dataset."""
         
         if self.model is None:
             print("No model loaded or trained.")

@@ -24,7 +24,7 @@ async def load_the_dataset():
 
 
 async def get_info_about_dataset():
-    print("--- Data Informations ---")
+    print("--- Dataset Information ---")
     if datamanager.df is None:
         print("Please load the dataset first.")
         return
@@ -100,7 +100,7 @@ async def preprocess_data():
         except Exception:
             pass
     except Exception as e:
-        spinner.fail(f'Vectorization failed: {e}')
+        spinner.fail(f'Vectorization failed : {e}')
     return
 
 

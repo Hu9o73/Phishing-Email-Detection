@@ -1,7 +1,7 @@
 class Printer:
     @staticmethod
     def format_bytes(bytes_value: float) -> str:
-        """Convert bytes to human readable format"""
+        """Convert bytes to a human readable format."""
         for unit in ["B", "KB", "MB", "GB"]:
             if bytes_value < 1024.0:
                 return f"{bytes_value:.2f} {unit}"
@@ -10,6 +10,7 @@ class Printer:
 
     @staticmethod
     def print_section_header(title: str):
-        print(f"\n{"="*60}")
+        line = "=" * 60
+        print(f"\n{line}")
         print(f"  {title}")
-        print("="*60)
+        print(line)
