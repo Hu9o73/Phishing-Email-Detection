@@ -1,8 +1,10 @@
 import os
 import joblib
-from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.model_selection import train_test_split, cross_validate, KFold
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report, accuracy_score
 
 
@@ -50,6 +52,15 @@ class ModelManager:
         elif model_type == "sgd":
             self.model_name = "SGDClassifier"
             self.model = SGDClassifier(loss="log_loss", max_iter=1000, random_state=42)
+        elif model_type == "decision_tree":
+            self.model_name = "DecisionTree"
+            self.model = DecisionTreeClassifier(
+                random_state=42,
+                max_depth=20,
+                min_samples_split=50,
+                min_samples_leaf=20,
+                class_weight="balanced"
+            )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
@@ -60,6 +71,67 @@ class ModelManager:
         acc = accuracy_score(y_test, y_pred)
         print(f"\n✅ Accuracy: {acc:.4f}\n")
         print(classification_report(y_test, y_pred))
+
+    # -----------------------------
+    # Cross Validation
+    # -----------------------------
+    def cross_validate_model(self, model_type="RandomForest", n_folds=5, use_multiple_metrics=False):
+        """Perform k-fold cross-validation on the specified model type.
+        
+        Args:
+            model_type: Type of model (random_forest, sgd, decision_tree)
+            n_folds: Number of folds for cross-validation
+            use_multiple_metrics: If True, evaluate with Precision, Recall, F1, ROC-AUC
+        """
+        if hasattr(self, 'X') and hasattr(self, 'y'):
+            X = self.X
+            y = self.y
+        else:
+            X, y = self.get_features_and_labels()
+        
+        # Initialize the model
+        model_type = model_type.lower().replace(" ", "_")
+        if model_type == "random_forest":
+            model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        elif model_type == "sgd":
+            model = SGDClassifier(loss="log_loss", max_iter=1000, random_state=42)
+        elif model_type == "decision_tree":
+            model = DecisionTreeClassifier(
+                random_state=42,
+                max_depth=20,
+                min_samples_split=50,
+                min_samples_leaf=20,
+                class_weight="balanced"
+            )
+        else:
+            raise ValueError(f"Unknown model type: {model_type}")
+
+        # Perform k-fold cross-validation
+        kf = KFold(n_splits=n_folds, shuffle=True, random_state=42)
+        
+        if use_multiple_metrics:
+            # Use multiple metrics for better evaluation on imbalanced datasets
+            scoring = ['accuracy', 'precision', 'recall', 'f1', 'roc_auc']
+            results = cross_validate(model, X, y, cv=kf, scoring=scoring, n_jobs=-1)
+            
+            print(f"\n🔄 Cross-validation results for {model_type}:")
+            print(f"Accuracy:  {results['test_accuracy'].mean():.4f} (±{results['test_accuracy'].std():.4f})")
+            print(f"Precision: {results['test_precision'].mean():.4f} (±{results['test_precision'].std():.4f})")
+            print(f"Recall:    {results['test_recall'].mean():.4f} (±{results['test_recall'].std():.4f})")
+            print(f"F1 Score:  {results['test_f1'].mean():.4f} (±{results['test_f1'].std():.4f})")
+            print(f"ROC-AUC:   {results['test_roc_auc'].mean():.4f} (±{results['test_roc_auc'].std():.4f})")
+            
+            return results
+        else:
+            # Original single metric (accuracy) for backward compatibility
+            results = cross_validate(model, X, y, cv=kf, scoring='accuracy', n_jobs=-1)
+            scores = results['test_accuracy']
+            
+            print(f"\n🔄 Cross-validation results for {model_type}:")
+            print(f"Mean accuracy: {scores.mean():.4f} (+/- {scores.std() * 2:.4f})")
+            print(f"Individual fold scores: {scores}")
+            
+            return scores
 
     # -----------------------------
     # Saving and loading
@@ -87,7 +159,7 @@ class ModelManager:
         print(f"\n✅ Loaded model: {model_name}")
 
     # -----------------------------
-    # Continue training
+    # Continue training    
     # -----------------------------
     def continue_training(self):
         
