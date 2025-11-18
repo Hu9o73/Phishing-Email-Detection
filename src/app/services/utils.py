@@ -4,8 +4,8 @@ import sys
 from halo import Halo
 
 from app.services.datamanager import datamanager
-from app.services.modelmanager import ModelManager
 from app.services.inputs import ask_for_float, ask_for_integer, ask_for_range, ask_yes_no
+from app.services.modelmanager import ModelManager
 from app.services.printers.data_information_printer import DataInformationPrinter
 
 
