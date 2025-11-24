@@ -5,3 +5,6 @@ matplotlib
 kagglehub[pandas-datasets]
 halo
 scikit-learn
+torch
+transformers
+tqdm
