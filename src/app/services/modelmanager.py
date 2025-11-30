@@ -18,14 +18,40 @@ class ModelManager:
     # -----------------------------
     # Data preparation
     # -----------------------------
+    
+    
     def get_features_and_labels(self):
-        
+    
         if getattr(self.dm, "X_processed", None) is None:
             raise ValueError("Data not vectorized yet. Please preprocess first.")
         if "Label" not in self.dm.df.columns:
             raise ValueError("No 'Label' column found in dataset.")
-
-        X = self.dm.X_processed
+        
+        # Get vectorized text features
+        X_text = self.dm.X_processed
+        
+        # Get additional encoded features if they exist
+        encoded_features = getattr(self.dm, "encoded_feature_columns", None)
+        
+        if encoded_features is not None and len(encoded_features) > 0:
+            # Combine text features with encoded features
+            from scipy.sparse import hstack, issparse
+            
+            # Get the encoded feature values from dataframe
+            X_encoded = self.dm.df[encoded_features].values
+            
+            # Convert X_text to sparse if it isn't already
+            if issparse(X_text):
+                # Combine sparse text features with dense encoded features
+                X = hstack([X_text, X_encoded])
+            else:
+                # Both are dense, use numpy concatenation
+                import numpy as np
+                X = np.hstack([X_text, X_encoded])
+        else:
+            # No additional features, use only text features
+            X = X_text
+        
         y = self.dm.df["Label"]
         return X, y
 
