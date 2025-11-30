@@ -62,3 +62,14 @@ More informations available on the kaggle page of the dataset: [DATASET ON KAGGL
     - `.venv/script/activate.ps1` on windows
 - Once in your venv, run `pip install -r ./src/requirements.txt` to install the dependencies
 - Finally, run the app using `python ./src`
+
+
+## Deep Learning model
+
+- Ensure dependencies are installed: `pip install -r ./src/requirements.txt` (adds torch, transformers, tqdm).
+- Launch the CLI with `python ./src` and select "Train a DL model" from the menu.
+- Choose "Fine-tune DistilBERT" to train on the `text_combined` field (Subject + Body); defaults use 2 epochs, batch size 8, lr=5e-5, and max length 256.
+- Training automatically handles class imbalance and runs on GPU if available (falls back to CPU).
+- Saved artifacts (model, tokenizer, label map) are stored in `models/distilbert_phishing/` for later reuse.
+- To re-evaluate, pick "Evaluate saved DistilBERT model" to print accuracy, precision, recall, F1, ROC-AUC, and per-class support.
+- GPU is optional but will speed up fine-tuning when present.

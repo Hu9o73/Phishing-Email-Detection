@@ -1,11 +1,13 @@
+
 import subprocess
 import sys
 
 from halo import Halo
 
 from app.services.datamanager import datamanager
-from app.services.modelmanager import ModelManager
+from app.services.dl_trainer import DLTrainer
 from app.services.inputs import ask_for_float, ask_for_integer, ask_for_range, ask_yes_no
+from app.services.modelmanager import ModelManager
 from app.services.printers.data_information_printer import DataInformationPrinter
 
 
@@ -67,7 +69,7 @@ async def preprocess_data():
     except Exception as e:
         spinner.fail(f'Handling quality issues failed: {e}')
 
-    print("\n--- Feature Engineering ---")
+    print("--- Feature Engineering ---")
     create_features = ask_yes_no(
         "Create ML feature columns (text_length, flags, sender/recipient domains + one-hot)?", default=True
     )
@@ -85,7 +87,7 @@ async def preprocess_data():
     if not do_vectorize:
         return
 
-    print("\n--- Text Vectorization Parameters ---")
+    print("--- Text Vectorization Parameters ---")
     ngram_range = ask_for_range("N-gram range (min-max)", default=(1, 2))
     max_features = ask_for_integer("Max features for vectorizer", default=10000, min=100)
 
@@ -105,10 +107,11 @@ async def preprocess_data():
 
 
 modelmanager = ModelManager(datamanager)
+dl_trainer = DLTrainer(datamanager)
 
 
 async def train_model_menu():
-    print("\nChoose a model to train:")
+    print("Choose a model to train:")
     print("1. Random Forest")
     print("2. Stochastic Gradient Descent (SGD)")
 
@@ -124,6 +127,35 @@ async def train_model_menu():
     save = input("Do you want to save this model? (y/n): ").lower()
     if save == "y":
         modelmanager.save_model()
+
+async def train_dl_model_menu():
+    if datamanager.df is None:
+        print("Please load the dataset first.")
+        return
+
+    print("Deep Learning options:")
+    print("1. Fine-tune DistilBERT")
+    print("2. Evaluate saved DistilBERT model")
+
+    choice = ask_for_integer("Enter choice", default=1, min=1, max=2)
+    if choice == 1:
+        epochs = ask_for_integer("Epochs", default=2, min=1)
+        batch_size = ask_for_integer("Batch size", default=8, min=1)
+        lr = ask_for_float("Learning rate", default=5e-5, min=1e-6, max=1e-2)
+        max_length = ask_for_integer("Max sequence length", default=256, min=64, max=512)
+        print(f"Using device: {dl_trainer.device}")
+        dl_trainer.fine_tune_distilbert(
+            epochs=epochs,
+            learning_rate=lr,
+            batch_size=batch_size,
+            max_length=max_length
+        )
+    elif choice == 2:
+        batch_size = ask_for_integer("Batch size", default=8, min=1)
+        max_length = ask_for_integer("Max sequence length", default=256, min=64, max=512)
+        dl_trainer.evaluate_saved_model(batch_size=batch_size, max_length=max_length)
+    else:
+        print("Invalid choice.")
 
 async def load_saved_model():
     model_name = input("Enter the model name (e.g., RandomForest or SGDClassifier): ")
@@ -143,7 +175,8 @@ async def menu():
         3: ("Preprocess data", preprocess_data),
         4: ("Train a classical ML model", train_model_menu),
         5: ("Load a saved model", load_saved_model),
-        6: ("Continue training a loaded model", continue_training_model)
+        6: ("Continue training a loaded model", continue_training_model),
+        7: ("Train a DL model", train_dl_model_menu)
     }
 
     while True:
@@ -164,4 +197,4 @@ async def menu():
         _, action = options[choice]
         clear_console()
         await action()
-        input("\nPress Enter to continue...")
+        input("Press Enter to continue...")
