@@ -114,12 +114,15 @@ async def train_model_menu():
     print("Choose a model to train:")
     print("1. Random Forest")
     print("2. Stochastic Gradient Descent (SGD)")
+    print("3. Linear SVM")
 
     choice = int(input("Enter choice: "))
     if choice == 1:
         modelmanager.train_model("random_forest")
     elif choice == 2:
         modelmanager.train_model("sgd")
+    elif choice == 3:
+        modelmanager.train_model("linear_svm")
     else:
         print("Invalid choice.")
         return
@@ -162,7 +165,11 @@ async def load_saved_model():
     modelmanager.load_model(model_name)
 
 async def continue_training_model():
-    modelmanager.continue_training()
+    evaluate = ask_yes_no("Evaluate with a holdout split before final fit?", default=True)
+    test_size = 0.2
+    if evaluate:
+        test_size = ask_for_float("Holdout fraction", default=0.2, min=0.05, max=0.5)
+    modelmanager.continue_training(evaluate=evaluate, test_size=test_size)
     save = input("Save the updated model? (y/n): ").lower()
     if save == "y":
         modelmanager.save_model()
