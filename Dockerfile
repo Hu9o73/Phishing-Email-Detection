@@ -8,9 +8,9 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/src \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Minimal system deps (libgomp for PyTorch CPU wheels)
+# Minimal system deps (libgomp for PyTorch CPU wheels) + bash for interactive shells
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 bash \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps first for better build caching
