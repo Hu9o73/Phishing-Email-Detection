@@ -13,9 +13,9 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
+from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from transformers import (
-    AdamW,
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
