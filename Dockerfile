@@ -4,7 +4,8 @@ WORKDIR /app
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
 
 # Minimal system deps (libgomp for PyTorch CPU wheels)
 RUN apt-get update \
