@@ -186,7 +186,7 @@ Epoch 3 - average training loss: 0.0010
 Epoch 4 - average training loss: 0.0068
 C:\Users\hbonn\Desktop\ESILV\A5\Security Use Cases\Phishing-Email-Detection\src\app\services\dl_trainer.py:312: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.detach().clone() or sourceTensor.detach().clone().requires_grad_(True), rather than torch.tensor(sourceTensor).
   batch_labels_tensor = torch.tensor(batch_labels, dtype=torch.long, device=self.device)
---- Evaluation Metrics (DL) ---
+--- Evaluation Metrics (DL) (4 epochs) ---
 Accuracy:  0.9339
 Precision: 0.0697
 Recall:    0.9518
@@ -206,6 +206,31 @@ Detailed classification report:
 weighted avg       0.99      0.93      0.96     16000
 
 Model artifacts saved to models\text_cnn_phishing
+
+
+
+--- Evaluation Metrics (DL) (50 epochs) ---
+Accuracy:  0.9434
+Precision: 0.0728
+Recall:    0.8434
+F1 Score:  0.1340
+ROC-AUC:   0.8930
+Per-class support:
+  0: 15917
+  1: 83
+Detailed classification report:
+              precision    recall  f1-score   support
+
+           0       1.00      0.94      0.97     15917
+           1       0.07      0.84      0.13        83
+
+    accuracy                           0.94     16000
+   macro avg       0.54      0.89      0.55     16000
+weighted avg       0.99      0.94      0.97     16000
+
+
+
+
 
 1. Train lightweight TextCNN (cross-entropy)
 2. Train lightweight TextCNN (focal loss + optional GA threshold)
