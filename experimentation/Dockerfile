@@ -1,3 +1,7 @@
+# Stage 1: grab the Ollama CLI from the official image (no external download URLs needed)
+FROM ollama/ollama:latest AS ollama
+
+# Stage 2: final runtime image
 FROM python:3.12-slim
 
 WORKDIR /app/experimentation
@@ -6,12 +10,13 @@ ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# System deps and Ollama CLI (used to talk to the Ollama server from this container)
+# Minimal system deps
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://ollama.com/download/ollama-linux-amd64 -o /usr/local/bin/ollama \
-    && chmod +x /usr/local/bin/ollama \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Bring in the Ollama CLI binary from the official image
+COPY --from=ollama /bin/ollama /usr/local/bin/ollama
 
 # Python deps for experimentation code
 COPY experimentation/requirements.txt /app/experimentation/requirements.txt
