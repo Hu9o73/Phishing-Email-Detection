@@ -5,3 +5,4 @@ __pycache__
 models/*
 LaTeX/
 Instructions-for-Projects.pdf
+experimentation/data/enron_data_fraud_labeled.csv

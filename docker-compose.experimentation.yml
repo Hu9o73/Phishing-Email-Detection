@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  llm-eval:
+    build:
+      context: .
+      dockerfile: experimentation/Dockerfile
+    image: phishing-llm-eval:latest
+    container_name: llm-eval
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    working_dir: /app/experimentation
+    command:
+      [
+        "python",
+        "ollama_llm_eval.py",
+        "--csv-path",
+        "/app/data/enron_data_fraud_labeled.csv",
+        "--target-rows",
+        "10000",
+        "--model",
+        "deepseek-r1:32b",
+      ]
+    volumes:
+      - ./experimentation/data:/app/data:ro
+      - ./experimentation/llm_results.csv:/app/experimentation/llm_results.csv
+
+volumes:
+  ollama-data:

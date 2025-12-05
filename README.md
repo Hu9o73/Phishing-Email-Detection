@@ -74,3 +74,15 @@ More informations available on the kaggle page of the dataset: [DATASET ON KAGGL
 - Saved artifacts live in `models/text_cnn_phishing/` (model.pt, vocab.json, label mapping, config, and optional GA-tuned threshold).
 - To evaluate, pick `Evaluate saved lightweight DL model`; metrics include accuracy, precision, recall, F1, ROC-AUC, and class support. If a GA threshold was tuned, it is reused for binary problems.
 - GPU is optional but will shorten training time if available.
+
+## Experimentation LLM eval (Docker)
+
+- Place the CSV at `experimentation/data/enron_data_fraud_labeled.csv` (already git-ignored).
+- Build and start the Ollama + eval stack in detached mode:
+  - `docker compose -f docker-compose.experimentation.yml up -d --build`
+- Check progress/logs anytime:
+  - `docker compose -f docker-compose.experimentation.yml logs -f llm-eval`
+  - `docker compose -f docker-compose.experimentation.yml logs -f ollama`
+- Stop the stack when done:
+  - `docker compose -f docker-compose.experimentation.yml down`
+- Override eval args as needed (e.g., target rows/model) by editing `docker-compose.experimentation.yml` or using `docker compose ... run llm-eval --help`.
