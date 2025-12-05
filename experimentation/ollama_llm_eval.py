@@ -39,7 +39,13 @@ def is_phishing_label(value) -> bool:
     return False
 
 
-def download_dataset() -> Path:
+def download_dataset(local_csv: Path | None = None) -> Path:
+    """Return a CSV path, preferring a user-supplied file and falling back to Kaggle."""
+    if local_csv:
+        if not local_csv.exists():
+            raise RuntimeError(f"Provided CSV does not exist: {local_csv}")
+        return local_csv.resolve()
+
     creds_path = Path.home() / ".kaggle" / "kaggle.json"
     if not creds_path.exists():
         raise RuntimeError(
@@ -58,7 +64,8 @@ def download_dataset() -> Path:
             "Kaggle download failed (403 usually means terms not accepted). "
             "Ensure: 1) you clicked 'Download/Accept' on the dataset page while logged in, "
             "2) ~/.kaggle/kaggle.json exists with username/key and perms 600, "
-            "3) ~/.kaggle has perms 700."
+            "3) ~/.kaggle has perms 700, "
+            "or pass --csv-path to use a local CSV."
         ) from exc
     finally:
         bar.update(1)
@@ -222,9 +229,14 @@ def main():
     parser.add_argument("--timeout", type=int, default=45, help="Per-request timeout in seconds")
     parser.add_argument("--skip-pull", action="store_true", help="Skip pulling the model if already cached")
     parser.add_argument("--keep-model", action="store_true", help="Do not delete the Ollama model after run")
+    parser.add_argument(
+        "--csv-path",
+        type=Path,
+        help="Optional local CSV path (e.g., experimentation/data/enron_data_fraud_labeled.csv).",
+    )
     args = parser.parse_args()
 
-    csv_path = download_dataset()
+    csv_path = download_dataset(args.csv_path)
     sample_df, phish_count, ham_count = load_sample(csv_path, args.target_rows, args.seed)
 
     if not args.skip_pull:
