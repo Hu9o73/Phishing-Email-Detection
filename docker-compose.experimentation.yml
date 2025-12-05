@@ -5,8 +5,8 @@ services:
     image: ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
-    ports:
-      - "11434:11434"
+    expose:
+      - "11434"
     volumes:
       - ollama-data:/root/.ollama
     healthcheck:
@@ -14,6 +14,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ollama-net
 
   llm-eval:
     build:
@@ -42,6 +44,12 @@ services:
     volumes:
       - ./experimentation/data:/app/data:ro
       - ./experimentation/llm_results.csv:/app/experimentation/llm_results.csv
+    networks:
+      - ollama-net
 
 volumes:
   ollama-data:
+
+networks:
+  ollama-net:
+    driver: bridge

@@ -86,3 +86,4 @@ More informations available on the kaggle page of the dataset: [DATASET ON KAGGL
 - Stop the stack when done:
   - `docker compose -f docker-compose.experimentation.yml down`
 - Override eval args as needed (e.g., target rows/model) by editing `docker-compose.experimentation.yml` or using `docker compose ... run llm-eval --help`.
+- Ports: the Ollama service is only exposed inside the compose network (no host port binding) to avoid conflicts with a host-installed Ollama. If you want to use your host’s Ollama instead, you can comment out the `ollama` service and set `OLLAMA_HOST=http://host.docker.internal:11434` for `llm-eval`.
