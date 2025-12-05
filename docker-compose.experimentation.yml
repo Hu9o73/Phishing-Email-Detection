@@ -40,6 +40,8 @@ services:
         "10000",
         "--model",
         "deepseek-r1:32b",
+        "--log-every",
+        "1",
       ]
     volumes:
       - ./experimentation/data:/app/data:ro
