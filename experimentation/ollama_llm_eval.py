@@ -81,6 +81,10 @@ def load_sample(csv_path: Path, target_rows: int, seed: int) -> Tuple[pd.DataFra
 
     phishing_df = df[df["Label"].apply(is_phishing_label)]
     ham_df = df[~df["Label"].apply(is_phishing_label)]
+    if phishing_df.empty:
+        raise ValueError("No phishing rows detected in dataset (Label should be 1 for phishing).")
+    if ham_df.empty:
+        raise ValueError("No ham/legitimate rows detected in dataset (Label should be 0 for ham).")
 
     normal_needed = max(0, target_rows - len(phishing_df))
     normal_needed = min(normal_needed, len(ham_df))
@@ -138,12 +142,32 @@ def query_llm(model: str, prompt: str, timeout: int) -> bool:
         capture_output=True,
         timeout=timeout,
     )
+
+    if result.returncode != 0:
+        err = result.stderr.decode("utf-8", errors="ignore").strip()
+        raise RuntimeError(f"ollama run failed with code {result.returncode}: {err}")
+
     text = result.stdout.decode("utf-8", errors="ignore").strip().lower()
-    if "phish" in text:
+    if not text:
+        raise RuntimeError("ollama returned an empty response.")
+
+    # Parse the first token to avoid silently treating empty/unknown responses as ham.
+    first_token = text.split()[0].strip(".,:;\"'()[]{}")
+    phish_tokens = {"phishing", "phish", "spam", "scam", "malicious", "fraud", "suspicious"}
+    ham_tokens = {"legitimate", "legit", "ham", "benign", "safe", "clean", "notphishing"}
+
+    if any(tok in first_token for tok in phish_tokens):
         return True
-    if "legit" in text or "not phishing" in text or "benign" in text:
+    if any(tok in first_token for tok in ham_tokens):
         return False
-    return "phish" in text
+
+    # Fallback to substring search for verbose answers.
+    if any(tok in text for tok in phish_tokens):
+        return True
+    if any(tok in text for tok in ham_tokens) or "not phishing" in text:
+        return False
+
+    raise RuntimeError(f"Unrecognized model response: {text!r}")
 
 
 def compute_metrics(tp: int, fp: int, tn: int, fn: int) -> dict:
