@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
+import json
 import kagglehub
 import pandas as pd
 from tqdm import tqdm
@@ -39,10 +40,30 @@ def is_phishing_label(value) -> bool:
 
 
 def download_dataset() -> Path:
+    creds_path = Path.home() / ".kaggle" / "kaggle.json"
+    if not creds_path.exists():
+        raise RuntimeError(
+            "Kaggle credentials missing. Create ~/.kaggle/kaggle.json with your username/key and chmod 600."
+        )
+    try:
+        json.loads(creds_path.read_text())
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"Unable to read Kaggle creds at {creds_path}: {exc}") from exc
+
     bar = tqdm(total=1, desc="Downloading dataset", unit="file", ncols=100, leave=False)
-    file_path = kagglehub.dataset_download("advaithsrao/enron-fraud-email-dataset")
-    bar.update(1)
-    bar.close()
+    try:
+        file_path = kagglehub.dataset_download("advaithsrao/enron-fraud-email-dataset")
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            "Kaggle download failed (403 usually means terms not accepted). "
+            "Ensure: 1) you clicked 'Download/Accept' on the dataset page while logged in, "
+            "2) ~/.kaggle/kaggle.json exists with username/key and perms 600, "
+            "3) ~/.kaggle has perms 700."
+        ) from exc
+    finally:
+        bar.update(1)
+        bar.close()
+
     return Path(file_path) / "enron_data_fraud_labeled.csv"
 
 
