@@ -163,11 +163,12 @@ def compute_metrics(tp: int, fp: int, tn: int, fn: int) -> dict:
     }
 
 
-def evaluate(df: pd.DataFrame, model: str, timeout: int) -> dict:
+def evaluate(df: pd.DataFrame, model: str, timeout: int, log_every: int = 0) -> dict:
     tp = fp = tn = fn = 0
-    pbar = tqdm(total=len(df), desc="Classifying emails", ncols=120)
+    use_bar = log_every <= 0
+    pbar = tqdm(total=len(df), desc="Classifying emails", ncols=120) if use_bar else None
 
-    for _, row in df.iterrows():
+    for i, (_, row) in enumerate(df.iterrows(), start=1):
         prompt = build_prompt(
             subject=str(row.get("Subject", "")),
             sender=str(row.get("X-From", "")),
@@ -188,19 +189,28 @@ def evaluate(df: pd.DataFrame, model: str, timeout: int) -> dict:
             fn += 1
 
         metrics = compute_metrics(tp, fp, tn, fn)
-        pbar.set_postfix(
-            tp=metrics["tp"],
-            fp=metrics["fp"],
-            tn=metrics["tn"],
-            fn=metrics["fn"],
-            prec=f"{metrics['precision']:.3f}",
-            rec=f"{metrics['recall']:.3f}",
-            acc=f"{metrics['accuracy']:.3f}",
-            f1=f"{metrics['f1']:.3f}",
-        )
-        pbar.update(1)
+        if use_bar:
+            pbar.set_postfix(
+                tp=metrics["tp"],
+                fp=metrics["fp"],
+                tn=metrics["tn"],
+                fn=metrics["fn"],
+                prec=f"{metrics['precision']:.3f}",
+                rec=f"{metrics['recall']:.3f}",
+                acc=f"{metrics['accuracy']:.3f}",
+                f1=f"{metrics['f1']:.3f}",
+            )
+            pbar.update(1)
+        elif log_every > 0 and (i % log_every == 0 or i == len(df)):
+            print(
+                f"[{i}/{len(df)}] tp={metrics['tp']} fp={metrics['fp']} tn={metrics['tn']} "
+                f"fn={metrics['fn']} prec={metrics['precision']:.3f} "
+                f"rec={metrics['recall']:.3f} acc={metrics['accuracy']:.3f} f1={metrics['f1']:.3f}",
+                flush=True,
+            )
 
-    pbar.close()
+    if pbar:
+        pbar.close()
     return compute_metrics(tp, fp, tn, fn)
 
 
@@ -234,6 +244,12 @@ def main():
         type=Path,
         help="Optional local CSV path (e.g., experimentation/data/enron_data_fraud_labeled.csv).",
     )
+    parser.add_argument(
+        "--log-every",
+        type=int,
+        default=0,
+        help="If >0, disable tqdm and print metrics every N rows (useful for docker logs).",
+    )
     args = parser.parse_args()
 
     csv_path = download_dataset(args.csv_path)
@@ -243,7 +259,7 @@ def main():
         pull_model(args.model)
 
     try:
-        metrics = evaluate(sample_df, args.model, args.timeout)
+        metrics = evaluate(sample_df, args.model, args.timeout, log_every=args.log_every)
         print(
             "Final confusion matrix and scores: "
             f"TP={metrics['tp']} FP={metrics['fp']} TN={metrics['tn']} FN={metrics['fn']} "
