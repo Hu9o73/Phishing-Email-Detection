@@ -159,8 +159,6 @@ def query_llm(model: str, prompt: str, timeout: int) -> bool:
     if not text:
         raise RuntimeError("ollama returned an empty response.")
 
-    print(f"Ollama answered: {text}")
-
     def normalize_token(token: str) -> str:
         return token.strip(".,:;\"'()[]{}").lower()
 
