@@ -75,7 +75,7 @@ def download_dataset(local_csv: Path | None = None) -> Path:
 
 
 def load_sample(csv_path: Path, target_rows: int, seed: int) -> Tuple[pd.DataFrame, int, int]:
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, low_memory=False)
     if "Label" not in df.columns:
         raise ValueError("Dataset must contain a 'Label' column")
 
@@ -121,8 +121,16 @@ def remove_model(model: str) -> None:
     subprocess.run(["ollama", "rm", model], check=False)
 
 
+def _truncate(text: str, limit: int = 2000) -> str:
+    return text.strip()[:limit]
+
+
 def build_prompt(subject: str, sender: str, recipient: str, body: str) -> str:
-    body_short = body.strip()[:800]
+    # Cap each field to avoid oversized prompts.
+    subject = _truncate(subject)
+    sender = _truncate(sender)
+    recipient = _truncate(recipient)
+    body_short = _truncate(body)
     return (
         "You are a security classifier. Decide if this email is phishing or legitimate. "
         "Answer with a single word: 'phishing' or 'legitimate'.\n"
@@ -260,7 +268,12 @@ def main():
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name (default: %(default)s)")
     parser.add_argument("--target-rows", type=int, default=TARGET_ROWS, help="Total rows to evaluate (default: %(default)s)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
-    parser.add_argument("--timeout", type=int, default=45, help="Per-request timeout in seconds")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="Per-request timeout in seconds (larger models may need more time)",
+    )
     parser.add_argument("--skip-pull", action="store_true", help="Skip pulling the model if already cached")
     parser.add_argument("--keep-model", action="store_true", help="Do not delete the Ollama model after run")
     parser.add_argument(
