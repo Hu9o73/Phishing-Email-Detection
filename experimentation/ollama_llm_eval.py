@@ -159,23 +159,33 @@ def query_llm(model: str, prompt: str, timeout: int) -> bool:
     if not text:
         raise RuntimeError("ollama returned an empty response.")
 
-    # Parse the first token to avoid silently treating empty/unknown responses as ham.
-    first_token = text.split()[0].strip(".,:;\"'()[]{}")
+    print(f"Ollama answered: {text}")
+
+    def normalize_token(token: str) -> str:
+        return token.strip(".,:;\"'()[]{}").lower()
+
     phish_tokens = {"phishing", "phish", "spam", "scam", "malicious", "fraud", "suspicious"}
     ham_tokens = {"legitimate", "legit", "ham", "benign", "safe", "clean", "notphishing"}
 
-    if any(tok in first_token for tok in phish_tokens):
-        return True
-    if any(tok in first_token for tok in ham_tokens):
+    # Focus on the tail of the response to avoid counting the model's reasoning text that
+    # mentions "phishing" even when the final answer is "legitimate".
+    tokens = [normalize_token(tok) for tok in text.split() if normalize_token(tok)]
+    if not tokens:
+        raise RuntimeError(f"Unrecognized model response: {text!r}")
+
+    tail_tokens = tokens[-8:]  # bias toward the final answer
+    tail_text = " ".join(tail_tokens)
+
+    if "not phishing" in tail_text or "notphishing" in tail_tokens:
         return False
 
-    # Fallback to substring search for verbose answers.
-    if any(tok in text for tok in phish_tokens):
-        return True
-    if any(tok in text for tok in ham_tokens) or "not phishing" in text:
-        return False
+    for tok in reversed(tail_tokens):
+        if tok in phish_tokens:
+            return True
+        if tok in ham_tokens:
+            return False
 
-    raise RuntimeError(f"Unrecognized model response: {text!r}")
+    raise RuntimeError(f"Unrecognized model response (no label token found near the end): {text!r}")
 
 
 def compute_metrics(tp: int, fp: int, tn: int, fn: int) -> dict:

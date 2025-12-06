@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   ollama:
     image: ollama/ollama:latest
@@ -39,7 +37,7 @@ services:
         "--target-rows",
         "10000",
         "--model",
-        "deepseek-r1:32b",
+        "deepseek-r1:1.5b",
         "--log-every",
         "1",
       ]
