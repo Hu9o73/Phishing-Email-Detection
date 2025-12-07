@@ -203,8 +203,9 @@ def compute_metrics(tp: int, fp: int, tn: int, fn: int) -> dict:
     }
 
 
-def evaluate(df: pd.DataFrame, model: str, timeout: int, log_every: int = 0) -> dict:
+def evaluate(df: pd.DataFrame, model: str, timeout: int, log_every: int = 0) -> Tuple[dict, int]:
     tp = fp = tn = fn = 0
+    skip_count = 0
     use_bar = log_every <= 0
     pbar = tqdm(total=len(df), desc="Classifying emails", ncols=120) if use_bar else None
 
@@ -216,7 +217,16 @@ def evaluate(df: pd.DataFrame, model: str, timeout: int, log_every: int = 0) -> 
             body=str(row.get("Body", "")),
         )
 
-        predicted_phish = query_llm(model, prompt, timeout)
+        try:
+            predicted_phish = query_llm(model, prompt, timeout)
+        except Exception as exc:  # noqa: BLE001
+            skip_count += 1
+            if use_bar and pbar:
+                pbar.set_postfix(error="llm error, skipped")
+                pbar.update(1)
+            else:
+                print(f"[{i}/{len(df)}] Skipping row due to LLM error: {exc}", flush=True)
+            continue
         actual_phish = is_phishing_label(row.get("Label"))
 
         if predicted_phish and actual_phish:
@@ -251,7 +261,10 @@ def evaluate(df: pd.DataFrame, model: str, timeout: int, log_every: int = 0) -> 
 
     if pbar:
         pbar.close()
-    return compute_metrics(tp, fp, tn, fn)
+    metrics = compute_metrics(tp, fp, tn, fn)
+    if skip_count:
+        print(f"Skipped {skip_count} rows due to LLM errors; processed {len(df) - skip_count}/{len(df)}.")
+    return metrics, len(df) - skip_count
 
 
 def save_results(metrics: dict, model: str, sample_size: int, phish_count: int, ham_count: int) -> None:
@@ -304,14 +317,14 @@ def main():
         pull_model(args.model)
 
     try:
-        metrics = evaluate(sample_df, args.model, args.timeout, log_every=args.log_every)
+        metrics, processed_rows = evaluate(sample_df, args.model, args.timeout, log_every=args.log_every)
         print(
             "Final confusion matrix and scores: "
             f"TP={metrics['tp']} FP={metrics['fp']} TN={metrics['tn']} FN={metrics['fn']} "
             f"Precision={metrics['precision']:.3f} Recall={metrics['recall']:.3f} "
             f"Accuracy={metrics['accuracy']:.3f} F1={metrics['f1']:.3f}"
         )
-        save_results(metrics, args.model, len(sample_df), phish_count, ham_count)
+        save_results(metrics, args.model, processed_rows, phish_count, ham_count)
     finally:
         if not args.keep_model:
             remove_model(args.model)
